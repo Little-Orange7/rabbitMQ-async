@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:rabbit="http://www.springframework.org/schema/rabbit"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd http://www.springframework.org/schema/rabbit http://www.springframework.org/schema/rabbit/spring-rabbit.xsd">
+
+    <description>rabbitmq 服务配置</description>
+    <!-- 公共部分 -->
+    <!-- 创建连接类 连接安装好的 rabbitmq -->
+    <bean id="connectionFactory"  class="org.springframework.amqp.rabbit.connection.CachingConnectionFactory">
+        <constructor-arg value="localhost" />
+        <property name="virtualHost" value="${rabbitmq.virtualHost}" />
+        <!-- host,RabbitMQ服务器地址，默认值"localhost" -->
+        <property name="host" value="${rabbitmq.ip}" />
+        <!-- port，RabbitMQ服务端口，默认值为5672 -->
+        <property name="port" value="${rabbitmq.port}" />
+        <!-- username,访问RabbitMQ服务器的账户,默认是guest -->
+        <property name="username" value="${rabbitmq.username}" />
+        <!-- username,访问RabbitMQ服务器的密码,默认是guest -->
+        <property name="password" value="${rabbitmq.password}" />
+        <!-- channel-cache-size，channel的缓存数量，默认值为25 -->
+        <property name="channelCacheSize" value="${rabbitmq.channelCacheSize}" />
+        <!-- cache-mode，缓存连接模式，默认值为CHANNEL(单个connection连接，连接之后关闭，自动销毁) -->
+        <property name="cacheMode" value="CHANNEL" />
+    </bean>
+    <!--或者这样配置，connection-factory元素实际就是注册一个org.springframework.amqp.rabbit.connection.CachingConnectionFactory实例-->
+    <!--<rabbit:connection-factory id="connectionFactory" host="${rabbitmq.ip}" port="${rabbitmq.port}"
+    username="${rabbitmq.manager.user}" password="${rabbitmq.manager.password}" />-->
+
+    <!-- RabbitAdmin主要用于在Java代码中对用于创建、绑定、管理队列与交换机,可以直接通过RabbitAdmin接口来管理 -->
+<!--    <rabbit:admin connection-factory="connectionFactory"/>-->
+
+    <!--定义消息队列,durable:是否持久化，如果想在RabbitMQ退出或崩溃的时候，不会失去所有的queue和消息，需要同时标志队列(queue)和交换机(exchange)是持久化的，即rabbit:queue标签和rabbit:direct-exchange中的durable=true,而消息(message)默认是持久化的可以看类org.springframework.amqp.core.MessageProperties中的属性public static final MessageDeliveryMode DEFAULT_DELIVERY_MODE = MessageDeliveryMode.PERSISTENT;exclusive: 仅创建者可以使用的私有队列，断开后自动删除；auto_delete: 当所有消费客户端连接断开后，是否自动删除队列 -->
+    <!--管理平台中显示是name，消费者监听的也是name,此处定义的id在绑定生产者时使用-->
+    <rabbit:queue id="queue_one" name="${test_queue_one}" durable="true" auto-delete="false" exclusive="false" />
+    <rabbit:queue id="queue_two" name="${test_queue_two}" durable="true" auto-delete="false" exclusive="false" />
+
+    <!--定义交换机，绑定队列,rabbitmq的exchangeType常用的三种模式：direct，fanout，topic三种,我们用direct模式，即rabbit:direct-exchange标签，Direct交换器很简单，如果是Direct类型，就会将消息中的RoutingKey与该Exchange关联的所有Binding中的BindingKey进行比较，如果相等，则发送到该Binding对应的Queue中。有一个需要注意的地方：如果找不到指定的exchange，就会报错。但routing key找不到的话，不会报错，这条消息会直接丢失，所以此处要小心,auto-delete:自动删除，如果为Yes，则该交换机所有队列queue删除后，自动删除交换机，默认为false -->
+    <!--管理平台中显示的是name，绑定amqpTemplate也是使用name-->
+    <rabbit:direct-exchange id="direct_Exchange" name="directExchange" durable="true" auto-delete="false">
+        <rabbit:bindings>
+            <!--queue对应上面定义的queue的id,此处的key是routingKey，调用生产者发送消息到对应队列需要传入相应的routringKey-->
+            <rabbit:binding queue="queue_one" key="${routingKey.one}"></rabbit:binding>
+            <rabbit:binding queue="queue_two" key="${routingKey.two}"></rabbit:binding>
+        </rabbit:bindings>
+    </rabbit:direct-exchange>
+
+    <!--定义 amqpTemplate 将交换机和amqp绑定，其中exchange对应的是上面定义的交换机的name-->
+    <rabbit:template id="amqpTemplate" exchange="directExchange" connection-factory="connectionFactory" channel-transacted="true"/>
+
+
+    <!-- 生产者部分 -->
+    <!-- 发送消息的producer类，也就是生产者 -->
+    <bean id="testProducer" class="com.example.rabbitdemo.producer.impl.TestProducerImpl">
+        <!-- spring注入 -->
+        <property name="amqpTemplate" ref="amqpTemplate"/>
+    </bean>
+
+
+    <!-- 消费者部分 -->
+    <!-- 自定义消费者类 -->
+    <bean id="testConsumerOne" class="com.example.rabbitdemo.consumer.TestConsumerOne"></bean>
+    <bean id="testConsumerTwo" class="com.example.rabbitdemo.consumer.TestConsumerTwo"></bean>
+    <!-- 配置监听acknowledge="manual"设置手动应答，它能够保证即使在一个worker处理消息的时候用CTRL+C来杀掉这个worker，或者一个consumer挂了(channel关闭了、connection关闭了或
+    者TCP连接断了)，也不会丢失消息。因为RabbitMQ知道没发送ack确认消息导致这个消息没有被完全处理，将会对这条消息做re-queue处理。如果此时有另一个consumer连接，消息会被重新发送至
+    另一个consumer会一直重发,直到消息处理成功-->
+    <rabbit:listener-container connection-factory="connectionFactory">
+        <!--此处queue-names对应的是定义queue的name而不是id-->
+        <rabbit:listener queue-names="${test_queue_one}" ref="testConsumerOne" />
+        <rabbit:listener queue-names="${test_queue_two}" ref="testConsumerTwo" />
+    </rabbit:listener-container>
+
+
+</beans>
