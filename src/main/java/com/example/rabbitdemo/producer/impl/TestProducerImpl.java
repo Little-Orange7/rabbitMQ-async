@@ -1,5 +1,6 @@
 package com.example.rabbitdemo.producer.impl;
 
+import com.alibaba.fastjson.JSON;
 import com.example.rabbitdemo.producer.TestProducer;
 import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -30,7 +31,8 @@ public class TestProducerImpl implements TestProducer {
     }
 
     @Override
-    public void sendMessage(String routingKey, String json) {
+    public void sendMessage(String routingKey, Object obj) {
+        String json= JSON.toJSONString(obj);
         send(routingKey,json);
     }
 }

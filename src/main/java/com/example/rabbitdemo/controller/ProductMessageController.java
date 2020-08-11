@@ -28,9 +28,8 @@ public class ProductMessageController {
         tp.setLogin("JackLogin");
         tp.setPassword("123456");
         tp.setAge(20);
-        String json= JSON.toJSONString(tp);
-        System.out.println("Controller  routingKey:"+routingKey+",json:"+json);
-        testProducer.sendMessage(routingKey,json);
+        System.out.println("Controller");
+        testProducer.sendMessage(routingKey,tp);
         return "OK";
     }
 
