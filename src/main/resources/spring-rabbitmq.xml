@@ -60,9 +60,7 @@
     <!-- 自定义消费者类 -->
     <bean id="testConsumerOne" class="com.example.rabbitdemo.consumer.TestConsumerOne"></bean>
     <bean id="testConsumerTwo" class="com.example.rabbitdemo.consumer.TestConsumerTwo"></bean>
-    <!-- 配置监听acknowledge="manual"设置手动应答，它能够保证即使在一个worker处理消息的时候用CTRL+C来杀掉这个worker，或者一个consumer挂了(channel关闭了、connection关闭了或
-    者TCP连接断了)，也不会丢失消息。因为RabbitMQ知道没发送ack确认消息导致这个消息没有被完全处理，将会对这条消息做re-queue处理。如果此时有另一个consumer连接，消息会被重新发送至
-    另一个consumer会一直重发,直到消息处理成功-->
+    <!-- 配置监听，默认是acknowledge="auto"，可以设置手动应答acknowledge="manual"-->
     <rabbit:listener-container connection-factory="connectionFactory">
         <!--此处queue-names对应的是定义queue的name而不是id-->
         <rabbit:listener queue-names="${test_queue_one}" ref="testConsumerOne" />
