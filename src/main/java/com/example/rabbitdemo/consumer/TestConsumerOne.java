@@ -13,7 +13,7 @@ public class TestConsumerOne implements MessageListener {
     @Override
     public void onMessage(Message message) {
         String messageJson=new String(message.getBody());
-        System.out.println("Consumer  messageJson:"+messageJson);
+        System.out.println("ConsumerOne  messageJson:"+messageJson);
         TestPojo tj =JSON.parseObject(messageJson, new TypeReference<TestPojo>() {});
     }
 }
